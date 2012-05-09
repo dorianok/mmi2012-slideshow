@@ -12,6 +12,15 @@ public class MMISlideshow extends PApplet {
 	private final static int imgWidth = 900;
 	private final static int imgHeight = 600;
 	
+	private enum InteractionMode
+	{
+	    KEYBOARD,
+	    GESTURE,
+	    SPEECH,
+	    GESTURE_AND_SPEECH;
+	}
+	private InteractionMode mode = InteractionMode.KEYBOARD; 
+	
 	private File[] imageFiles;
 	private PImage img;
 	private int currentImgIdx = 0;
@@ -23,22 +32,28 @@ public class MMISlideshow extends PApplet {
 		// context = new SimpleOpenNI(this);
 		context = new SimpleOpenNI(this,SimpleOpenNI.RUN_MODE_MULTI_THREADED);
 
-		// enable depthMap generation 
-		context.enableDepth();
+		// enable depthMap generation
+		if(context.enableDepth()) {
+			//if kinect is available...
+			mode = InteractionMode.GESTURE;
+					
+			context.setMirror(true);
+			// enable skeleton generation for all joints
+			context.enableUser(SimpleOpenNI.SKEL_PROFILE_ALL);
+			
+			size(imgWidth + context.depthWidth()/2, Math.max(imgHeight,context.depthHeight()/2)); 
+		}
+		else
+			size(imgWidth, imgHeight); 
+			 
 
-		context.setMirror(true);
-		
-		// enable skeleton generation for all joints
-		context.enableUser(SimpleOpenNI.SKEL_PROFILE_ALL);
-		
 		background(180,180,180);
 
 		stroke(0,0,255);
 		strokeWeight(3);
 		smooth();
 
-		size(imgWidth + context.depthWidth()/2, Math.max(imgHeight,context.depthHeight()/2)); 
-		
+
 		loadImageFiles();
 		
 		//load first img by default
@@ -47,13 +62,13 @@ public class MMISlideshow extends PApplet {
 
 	public void draw()
 	{
-		
-		// update the cam
-		context.update();
+		if(mode==InteractionMode.GESTURE) {
+			// update the cam
+			context.update();
+			// draw depthImageMap
+			image(context.depthImage(),imgWidth,0,context.depthWidth()/2,context.depthHeight()/2);
+		}
 
-		// draw depthImageMap
-		image(context.depthImage(),imgWidth,0,context.depthWidth()/2,context.depthHeight()/2);
-		
 		image(img,0,0,imgWidth, imgHeight);
 		
 		// draw the skeleton if it's available
