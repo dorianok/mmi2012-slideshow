@@ -9,8 +9,14 @@ import SimpleOpenNI.SimpleOpenNI;
 
 public class MMISlideshow extends PApplet {
 
-	private final static int imgWidth = 900;
-	private final static int imgHeight = 600;
+	private final static int canvasWidth = 900;
+	private final static int canvasHeight = 600;
+	private final static float scalingIncrement = 0.25f;
+	private final static float maxScalingFactor = 3.0f;
+	
+	private float imgRatio = (float)canvasWidth/canvasHeight;
+	private float rotationAngle = 0;
+	private float scalingFactor = 1.0f;
 	
 	private enum InteractionMode
 	{
@@ -41,10 +47,10 @@ public class MMISlideshow extends PApplet {
 			// enable skeleton generation for all joints
 			context.enableUser(SimpleOpenNI.SKEL_PROFILE_ALL);
 			
-			size(imgWidth + context.depthWidth()/2, Math.max(imgHeight,context.depthHeight()/2)); 
+			size(canvasWidth + context.depthWidth()/2, Math.max(canvasHeight,context.depthHeight()/2)); 
 		}
 		else
-			size(imgWidth, imgHeight); 
+			size(canvasWidth, canvasHeight); 
 			 
 
 		background(180,180,180);
@@ -62,14 +68,47 @@ public class MMISlideshow extends PApplet {
 
 	public void draw()
 	{
+		background(180,180,180);
+		
 		if(mode==InteractionMode.GESTURE) {
 			// update the cam
 			context.update();
 			// draw depthImageMap
-			image(context.depthImage(),imgWidth,0,context.depthWidth()/2,context.depthHeight()/2);
+			image(context.depthImage(),canvasWidth,0,context.depthWidth()/2,context.depthHeight()/2);
 		}
 
-		image(img,0,0,imgWidth, imgHeight);
+		
+		translate(canvasWidth/2, canvasHeight/2);
+		rotate(rotationAngle);
+		scale(scalingFactor);
+		//System.out.println(rotationAngle + " " + rotationAngle*(180/PI));
+
+		float sizeX, sizeY;
+		if(round(rotationAngle/(PI/2))%2==0) { //rotated by 0¡, +-180¡, +- 360¡, etc 
+			if(img.width > img.height) { //landscape image 
+				sizeX = canvasWidth;
+				sizeY = canvasWidth/imgRatio;
+			}
+			else { //portrait image
+				sizeX = canvasHeight/imgRatio;
+				sizeY = canvasHeight;
+			}
+		}
+		else { //rotated by +-45¡, +- 135¡, etc 
+			if(img.width > img.height) { //landscape image 
+				sizeX = canvasHeight;
+				sizeY = canvasHeight/imgRatio;
+			}
+			else { //portrait image
+				sizeX = canvasWidth/imgRatio;
+				sizeY = canvasWidth;
+			}
+		}
+		
+		
+		
+		image(img, -sizeX/2, -sizeY/2, sizeX, sizeY);
+		
 		
 		// draw the skeleton if it's available
 //		if(context.isTrackingSkeleton(1))
@@ -79,11 +118,28 @@ public class MMISlideshow extends PApplet {
 	public void keyPressed() {
 		if(keyCode==LEFT) {
 			currentImgIdx = Math.max(0, currentImgIdx-1);
+			img = loadImage(imageFiles[currentImgIdx].getAbsolutePath());
 		}
 		else if(keyCode==RIGHT) {
 			currentImgIdx = Math.min(imageFiles.length-1, currentImgIdx+1);
+			img = loadImage(imageFiles[currentImgIdx].getAbsolutePath());
 		}
-		img = loadImage(imageFiles[currentImgIdx].getAbsolutePath());
+		
+		else if(key=='r') {
+			rotationAngle += PI/2;
+		}
+		else if(key=='l') {
+			rotationAngle -= PI/2;
+		}
+		
+		else if(key=='+') {
+			scalingFactor *= (1+scalingIncrement);
+			scalingFactor = Math.min(scalingFactor, maxScalingFactor);
+		}
+		else if(key=='-') {
+			scalingFactor /= (1+scalingIncrement);
+			scalingFactor = Math.max(scalingFactor, 1.0f);
+		}
 	}
 	
 	private void loadImageFiles() {
