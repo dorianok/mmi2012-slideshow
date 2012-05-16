@@ -1,5 +1,7 @@
 package mmislideshow;
 
+import java.awt.Event;
+import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.FileFilter;
 
@@ -13,10 +15,12 @@ public class MMISlideshow extends PApplet {
 	private final static int canvasHeight = 600;
 	private final static float scalingIncrement = 0.25f;
 	private final static float maxScalingFactor = 3.0f;
+	private final static float translationIncrement = 0.05f;
 	
 	private float imgRatio = (float)canvasWidth/canvasHeight;
 	private float rotationAngle = 0;
 	private float scalingFactor = 1.0f;
+	private float translationX, translationY;
 	
 	private enum InteractionMode
 	{
@@ -79,6 +83,7 @@ public class MMISlideshow extends PApplet {
 
 		
 		translate(canvasWidth/2, canvasHeight/2);
+		translate(translationX, translationY);
 		rotate(rotationAngle);
 		scale(scalingFactor);
 		//System.out.println(rotationAngle + " " + rotationAngle*(180/PI));
@@ -115,32 +120,103 @@ public class MMISlideshow extends PApplet {
 //			drawSkeleton(1);
 	}
 
+
 	public void keyPressed() {
 		if(keyCode==LEFT) {
 			currentImgIdx = Math.max(0, currentImgIdx-1);
 			img = loadImage(imageFiles[currentImgIdx].getAbsolutePath());
+			scalingFactor = 1.0f;
+			translationX = translationY = rotationAngle = 0;
 		}
 		else if(keyCode==RIGHT) {
 			currentImgIdx = Math.min(imageFiles.length-1, currentImgIdx+1);
 			img = loadImage(imageFiles[currentImgIdx].getAbsolutePath());
+			scalingFactor = 1.0f;
+			translationX = translationY = rotationAngle = 0;
 		}
 		
 		else if(key=='r') {
 			rotationAngle += PI/2;
+			scalingFactor = 1.0f;
+			translationX = translationY = 0;
 		}
 		else if(key=='l') {
 			rotationAngle -= PI/2;
+			scalingFactor = 1.0f;
+			translationX = translationY = 0;
 		}
 		
 		else if(key=='+') {
 			scalingFactor *= (1+scalingIncrement);
 			scalingFactor = Math.min(scalingFactor, maxScalingFactor);
+			System.out.println(translationX + " " + getCurrentImageWidth() + " " + scalingFactor);
 		}
 		else if(key=='-') {
 			scalingFactor /= (1+scalingIncrement);
 			scalingFactor = Math.max(scalingFactor, 1.0f);
+			
+			float imgW = getCurrentImageWidth();
+			float imgH = getCurrentImageHeight();
+			if(imgW > canvasWidth) {
+				translationX = Math.min(translationX, ((imgW - canvasWidth)/2));
+				translationX = Math.max(translationX, -((imgW - canvasWidth)/2));
+			}
+			else {
+				translationX = 0;
+			}
+			translationY = Math.min(translationY, ((imgH - canvasHeight)/2));
+			translationY = Math.max(translationY, -((imgH - canvasHeight)/2));
+			
+			System.out.println(translationX + " " + getCurrentImageWidth() + " " + scalingFactor);
 		}
+		
+		
+		if(key=='a') {
+			float imgW = getCurrentImageWidth();
+			if(imgW > canvasWidth) {
+				translationX += canvasWidth*translationIncrement;
+				translationX = Math.min(translationX, ((imgW - canvasWidth)/2));
+			}
+			System.out.println(translationX + " " + getCurrentImageWidth() + " " + scalingFactor);
+		}
+		else if(key=='d') {
+			float imgW = getCurrentImageWidth();
+			if(imgW > canvasWidth) {
+				translationX -= canvasWidth*translationIncrement;
+				translationX = Math.max(translationX, -((imgW - canvasWidth)/2));
+			}
+		}
+		else if(key=='w') {
+			translationY += canvasHeight*translationIncrement;
+			translationY = Math.min(translationY, ((getCurrentImageHeight() - canvasHeight)/2));
+			//System.out.println(translationX + " " + canvasWidth*scalingFactor + " " + scalingFactor);
+		}
+		else if(key=='s') {
+			translationY -= canvasHeight*translationIncrement;
+			translationY = Math.max(translationY, -((getCurrentImageHeight() - canvasHeight)/2));
+		}
+		
+
 	}
+	
+
+
+	private float getCurrentImageWidth() {
+		if(isImageInPortraitOrientation())
+			return (canvasHeight/imgRatio) * scalingFactor;
+		else 
+			return canvasWidth*scalingFactor;
+	}
+	private float getCurrentImageHeight() {
+			return canvasHeight*scalingFactor;
+	}
+	
+	private boolean isImageInPortraitOrientation() {
+		if(round(rotationAngle/(PI/2))%2==0 && img.width > img.height)
+			return false;
+		return true;
+	}
+	
 	
 	private void loadImageFiles() {
 		File imageDir = new File(dataPath("images/"));
