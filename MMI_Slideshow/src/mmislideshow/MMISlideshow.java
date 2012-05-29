@@ -1,26 +1,32 @@
 package mmislideshow;
 
-import java.awt.Event;
+import java.awt.Color;
 import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.FileFilter;
 
 import processing.core.PApplet;
+import processing.core.PFont;
 import processing.core.PImage;
-import SimpleOpenNI.SimpleOpenNI;
 
 public class MMISlideshow extends PApplet {
 
 	private final static int canvasWidth = 900;
 	private final static int canvasHeight = 600;
+	private final static int statusBarHeight = 25;
 	private final static float scalingIncrement = 0.25f;
 	private final static float maxScalingFactor = 3.0f;
 	private final static float translationIncrement = 0.05f;
+	private final static int minTimeBetweenActions = 750; //in ms
 	
+	private Color background = Color.BLACK;
 	private float imgRatio = (float)canvasWidth/canvasHeight;
 	private float rotationAngle = 0;
 	private float scalingFactor = 1.0f;
 	private float translationX, translationY;
+	private long timeLastAction;
+	
+	private boolean inputActivated = false;
 	
 	private enum InteractionMode
 	{
@@ -35,34 +41,12 @@ public class MMISlideshow extends PApplet {
 	private PImage img;
 	private int currentImgIdx = 0;
 	
-	public SimpleOpenNI  context;
-
 	public void setup()
 	{
-		// context = new SimpleOpenNI(this);
-		context = new SimpleOpenNI(this,SimpleOpenNI.RUN_MODE_MULTI_THREADED);
 
-		// enable depthMap generation
-		if(context.enableDepth()) {
-			//if kinect is available...
-			mode = InteractionMode.GESTURE;
-					
-			context.setMirror(true);
-			// enable skeleton generation for all joints
-			context.enableUser(SimpleOpenNI.SKEL_PROFILE_ALL);
-			
-			size(canvasWidth + context.depthWidth()/2, Math.max(canvasHeight,context.depthHeight()/2)); 
-		}
-		else
-			size(canvasWidth, canvasHeight); 
+		size(900, 600+25); 
 			 
-
-		background(180,180,180);
-
-		stroke(0,0,255);
-		strokeWeight(3);
 		smooth();
-
 
 		loadImageFiles();
 		
@@ -72,15 +56,9 @@ public class MMISlideshow extends PApplet {
 
 	public void draw()
 	{
-		background(180,180,180);
+		background(background.getRGB());
 		
-		if(mode==InteractionMode.GESTURE) {
-			// update the cam
-			context.update();
-			// draw depthImageMap
-			image(context.depthImage(),canvasWidth,0,context.depthWidth()/2,context.depthHeight()/2);
-		}
-
+		pushMatrix(); 
 		
 		translate(canvasWidth/2, canvasHeight/2);
 		translate(translationX, translationY);
@@ -114,6 +92,9 @@ public class MMISlideshow extends PApplet {
 		
 		image(img, -sizeX/2, -sizeY/2, sizeX, sizeY);
 		
+		popMatrix(); 
+		
+		drawStatusBar();
 		
 		// draw the skeleton if it's available
 //		if(context.isTrackingSkeleton(1))
@@ -121,37 +102,75 @@ public class MMISlideshow extends PApplet {
 	}
 
 
+	private void drawStatusBar() {		
+		if(inputActivated) {
+			fill(0,255,0);
+			rect(0,canvasHeight,canvasWidth,statusBarHeight);
+			fill(0,0,0);
+		}
+		else {
+			fill(background.getRGB());
+			rect(0,canvasHeight,canvasWidth,statusBarHeight);
+			fill(255,255,255);
+		}
+		textSize(18);
+		text("Image " + (currentImgIdx+1) + "/" + imageFiles.length  , 20, canvasHeight + statusBarHeight/2 + 5);
+	}
+	
 	public void keyPressed() {
-		if(keyCode==LEFT) {
-			currentImgIdx = Math.max(0, currentImgIdx-1);
-			img = loadImage(imageFiles[currentImgIdx].getAbsolutePath());
-			scalingFactor = 1.0f;
-			translationX = translationY = rotationAngle = 0;
-		}
-		else if(keyCode==RIGHT) {
-			currentImgIdx = Math.min(imageFiles.length-1, currentImgIdx+1);
-			img = loadImage(imageFiles[currentImgIdx].getAbsolutePath());
-			scalingFactor = 1.0f;
-			translationX = translationY = rotationAngle = 0;
-		}
 		
-		else if(key=='r') {
-			rotationAngle += PI/2;
-			scalingFactor = 1.0f;
-			translationX = translationY = 0;
-		}
-		else if(key=='l') {
-			rotationAngle -= PI/2;
-			scalingFactor = 1.0f;
-			translationX = translationY = 0;
-		}
+		int timeBetweenLastAction = (int)(System.currentTimeMillis()-timeLastAction);
 		
-		else if(key=='+') {
+		if(keyCode==KeyEvent.VK_0) {
+			System.out.println("gesture mode ACTIVATED");
+			inputActivated = true;
+			return;
+		}
+		System.out.println("keyPressed: " + keyCode + " " + inputActivated);
+		System.out.println(timeBetweenLastAction);
+		if(!inputActivated)
+			return;
+		
+		if(keyCode==KeyEvent.VK_P) {
+			if(timeBetweenLastAction > minTimeBetweenActions) {
+				currentImgIdx = Math.max(0, currentImgIdx-1);
+				img = loadImage(imageFiles[currentImgIdx].getAbsolutePath());
+				scalingFactor = 1.0f;
+				translationX = translationY = rotationAngle = 0;
+			}
+			timeLastAction = System.currentTimeMillis();
+		}
+		else if(keyCode==KeyEvent.VK_N) {
+			if(timeBetweenLastAction > minTimeBetweenActions) {
+				currentImgIdx = Math.min(imageFiles.length-1, currentImgIdx+1);
+				img = loadImage(imageFiles[currentImgIdx].getAbsolutePath());
+				scalingFactor = 1.0f;
+				translationX = translationY = rotationAngle = 0;
+			}
+			timeLastAction = System.currentTimeMillis();
+		}
+		else if(keyCode==KeyEvent.VK_R) {
+			if(timeBetweenLastAction > minTimeBetweenActions) {
+				rotationAngle += PI/2;
+				scalingFactor = 1.0f;
+				translationX = translationY = 0;
+			}
+			timeLastAction = System.currentTimeMillis();
+		}
+		else if(keyCode==KeyEvent.VK_L) {
+			if(timeBetweenLastAction > minTimeBetweenActions) {
+				rotationAngle -= PI/2;
+				scalingFactor = 1.0f;
+				translationX = translationY = 0;
+			}
+			timeLastAction = System.currentTimeMillis();
+		}
+		else if(keyCode==KeyEvent.VK_J) {
 			scalingFactor *= (1+scalingIncrement);
 			scalingFactor = Math.min(scalingFactor, maxScalingFactor);
-			System.out.println(translationX + " " + getCurrentImageWidth() + " " + scalingFactor);
+			//System.out.println(translationX + " " + getCurrentImageWidth() + " " + scalingFactor);
 		}
-		else if(key=='-') {
+		else if(keyCode==KeyEvent.VK_K) {
 			scalingFactor /= (1+scalingIncrement);
 			scalingFactor = Math.max(scalingFactor, 1.0f);
 			
@@ -167,38 +186,44 @@ public class MMISlideshow extends PApplet {
 			translationY = Math.min(translationY, ((imgH - canvasHeight)/2));
 			translationY = Math.max(translationY, -((imgH - canvasHeight)/2));
 			
-			System.out.println(translationX + " " + getCurrentImageWidth() + " " + scalingFactor);
+			//System.out.println(translationX + " " + getCurrentImageWidth() + " " + scalingFactor);
 		}
-		
-		
-		if(key=='a') {
+		else if(keyCode==KeyEvent.VK_A) {
 			float imgW = getCurrentImageWidth();
 			if(imgW > canvasWidth) {
 				translationX += canvasWidth*translationIncrement;
 				translationX = Math.min(translationX, ((imgW - canvasWidth)/2));
 			}
-			System.out.println(translationX + " " + getCurrentImageWidth() + " " + scalingFactor);
+			//System.out.println(translationX + " " + getCurrentImageWidth() + " " + scalingFactor);
 		}
-		else if(key=='d') {
+		else if(keyCode==KeyEvent.VK_D) {
 			float imgW = getCurrentImageWidth();
 			if(imgW > canvasWidth) {
 				translationX -= canvasWidth*translationIncrement;
 				translationX = Math.max(translationX, -((imgW - canvasWidth)/2));
 			}
 		}
-		else if(key=='w') {
+		else if(keyCode==KeyEvent.VK_W) {
 			translationY += canvasHeight*translationIncrement;
 			translationY = Math.min(translationY, ((getCurrentImageHeight() - canvasHeight)/2));
 			//System.out.println(translationX + " " + canvasWidth*scalingFactor + " " + scalingFactor);
 		}
-		else if(key=='s') {
+		else if(keyCode==KeyEvent.VK_S) {
 			translationY -= canvasHeight*translationIncrement;
 			translationY = Math.max(translationY, -((getCurrentImageHeight() - canvasHeight)/2));
 		}
 		
+		
 
 	}
 	
+	@Override
+	public void keyReleased() {
+		if(keyCode==KeyEvent.VK_0) {
+			System.out.println("gesture mode DEACTIVATED");
+			inputActivated = false;
+		}
+	}
 
 
 	private float getCurrentImageWidth() {
@@ -229,95 +254,6 @@ public class MMISlideshow extends PApplet {
 		} );
 		
 	}
-	
-	
-	// draw the skeleton with the selected joints
-	private void drawSkeleton(int userId)
-	{
-		// to get the 3d joint data
-		/*
-		  PVector jointPos = new PVector();
-		  context.getJointPositionSkeleton(userId,SimpleOpenNI.SKEL_NECK,jointPos);
-		  println(jointPos);
-		 */
-
-		context.drawLimb(userId, SimpleOpenNI.SKEL_HEAD, SimpleOpenNI.SKEL_NECK);
-		
-		
-		context.drawLimb(userId, SimpleOpenNI.SKEL_NECK, SimpleOpenNI.SKEL_LEFT_SHOULDER);
-		context.drawLimb(userId, SimpleOpenNI.SKEL_LEFT_SHOULDER, SimpleOpenNI.SKEL_LEFT_ELBOW);
-		context.drawLimb(userId, SimpleOpenNI.SKEL_LEFT_ELBOW, SimpleOpenNI.SKEL_LEFT_HAND);
-
-		context.drawLimb(userId, SimpleOpenNI.SKEL_NECK, SimpleOpenNI.SKEL_RIGHT_SHOULDER);
-		context.drawLimb(userId, SimpleOpenNI.SKEL_RIGHT_SHOULDER, SimpleOpenNI.SKEL_RIGHT_ELBOW);
-		context.drawLimb(userId, SimpleOpenNI.SKEL_RIGHT_ELBOW, SimpleOpenNI.SKEL_RIGHT_HAND);
-
-		context.drawLimb(userId, SimpleOpenNI.SKEL_LEFT_SHOULDER, SimpleOpenNI.SKEL_TORSO);
-		context.drawLimb(userId, SimpleOpenNI.SKEL_RIGHT_SHOULDER, SimpleOpenNI.SKEL_TORSO);
-
-		context.drawLimb(userId, SimpleOpenNI.SKEL_TORSO, SimpleOpenNI.SKEL_LEFT_HIP);
-		context.drawLimb(userId, SimpleOpenNI.SKEL_LEFT_HIP, SimpleOpenNI.SKEL_LEFT_KNEE);
-		context.drawLimb(userId, SimpleOpenNI.SKEL_LEFT_KNEE, SimpleOpenNI.SKEL_LEFT_FOOT);
-
-		context.drawLimb(userId, SimpleOpenNI.SKEL_TORSO, SimpleOpenNI.SKEL_RIGHT_HIP);
-		context.drawLimb(userId, SimpleOpenNI.SKEL_RIGHT_HIP, SimpleOpenNI.SKEL_RIGHT_KNEE);
-		context.drawLimb(userId, SimpleOpenNI.SKEL_RIGHT_KNEE, SimpleOpenNI.SKEL_RIGHT_FOOT);  
-	}
-
-	// -----------------------------------------------------------------
-	// SimpleOpenNI events
-
-	public void onNewUser(int userId)
-	{
-		println("onNewUser - userId: " + userId);
-		println("  start pose detection");
-
-		context.startPoseDetection("Psi",userId);
-	}
-
-	public void onLostUser(int userId)
-	{
-		println("onLostUser - userId: " + userId);
-	}
-
-	public void onStartCalibration(int userId)
-	{
-		println("onStartCalibration - userId: " + userId);
-	}
-
-	public void onEndCalibration(int userId, boolean successfull)
-	{
-		println("onEndCalibration - userId: " + userId + ", successfull: " + successfull);
-
-		if (successfull) 
-		{ 
-			println("  User calibrated !!!");
-			context.startTrackingSkeleton(userId); 
-		} 
-		else 
-		{ 
-			println("  Failed to calibrate user !!!");
-			println("  Start pose detection");
-			context.startPoseDetection("Psi",userId);
-		}
-	}
-
-	public void onStartPose(String pose,int userId)
-	{
-		println("onStartPose - userId: " + userId + ", pose: " + pose);
-		println(" stop pose detection");
-
-		context.stopPoseDetection(userId); 
-		context.requestCalibrationSkeleton(userId, true);
-
-	}
-
-	public void onEndPose(String pose,int userId)
-	{
-		println("onEndPose - userId: " + userId + ", pose: " + pose);
-	}
-
-	
 	
 	
 	public static void main(String _args[]) {
