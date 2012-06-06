@@ -26,7 +26,7 @@ public class MMISlideshow extends PApplet {
 	private float translationX, translationY;
 	private long timeLastAction;
 	
-	private boolean inputActivated = true;
+	private boolean inputActivated = false;
 	
 	private enum InteractionMode
 	{
@@ -130,6 +130,9 @@ public class MMISlideshow extends PApplet {
 		if(keyCode==KeyEvent.VK_0) {
 			System.out.println("gesture mode ACTIVATED");
 			inputActivated = true;
+			//speech
+			System.out.println("speech mode ACTIVATED, capture starts");
+			speechRecognizer.startCaptureAudio();
 			return;
 		}
 		System.out.println("keyPressed: " + keyCode + " " + inputActivated);
@@ -168,9 +171,6 @@ public class MMISlideshow extends PApplet {
 		case KeyEvent.VK_S:
 			moveDown();
 			break;
-		case KeyEvent.VK_CONTROL:
-			speechRecognizer.startCaptureAudio();
-			break;
 		}
 	}
 
@@ -179,11 +179,10 @@ public class MMISlideshow extends PApplet {
 		if(keyCode==KeyEvent.VK_0) {
 			System.out.println("gesture mode DEACTIVATED");
 			inputActivated = false;
-		} else if(keyCode==KeyEvent.VK_CONTROL){
+			//speech
 			System.out.println("speech mode DEACTIVATED, capture ends");
 			speechRecognizer.stopCaptureAudio();
 			handleSpeechRequest(speechRecognizer.recognizeSpeech());
-			
 		}
 	}
 
