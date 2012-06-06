@@ -69,12 +69,12 @@ public class SpeechRecognizer {
 	}
 
 	protected List<String> recognizeSpeech() {
-		ArrayList<String> result = new ArrayList<String>();		
-		
+		ArrayList<String> result = new ArrayList<String>();
+
 		ASRRequest request = null;
 
 		request = new ASRRequest();
-		
+
 		String requestLanguageCode = ASRRequest.LANG_en_US;
 
 		try {
@@ -85,15 +85,17 @@ public class SpeechRecognizer {
 			for (Hypothesis hypothesis : asrResult.getHypotheses()) {
 				result.add(hypothesis.getUtterance());
 			}
-			
+
 			return result;
 			// show prepared result in GUI
-//			textResult.setText(resultText.toString());
+			// textResult.setText(resultText.toString());
 		} catch (URISyntaxException e) {
-			System.out.println("An error occured when requesting the Google Speech-API: ");
+			System.out
+					.println("An error occured when requesting the Google Speech-API: ");
 			e.printStackTrace();
 		} catch (ParseException e) {
-			System.out.println("An error occured when parsing the result of the ASR: ");
+			System.out
+					.println("An error occured when parsing the result of the ASR: ");
 			e.printStackTrace();
 		}
 		return null;
@@ -103,11 +105,48 @@ public class SpeechRecognizer {
 		// stop capturing
 		targetDataLine.stop();
 		targetDataLine.close();
-		
+
 		createFlac();
 	}
-	
-	
+
+	public boolean checkPhrase(String phrase) {
+		List<String> result = recognizeSpeech();
+		for (String words : result) {
+			if (words.contains(phrase)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public boolean checkContainsPhrase(List<String> list, String phrase) {
+		for (String entry : list) {
+			System.out.println(entry);
+		}
+		
+		
+		String[] words = phrase.split(" ");
+		boolean[] results = new boolean[words.length];
+		for(int i = 0; i<results.length;i++){
+			results[i] = false;
+		}
+		
+		for (int i = 0; i < words.length; i++) {
+			for (String entry : list) {
+				String[] entryWords = entry.split(" ");
+				for(int j = 0; j<entryWords.length;j++){
+					if(entryWords[j].equals(words[i])){
+						results[i] = true;
+					}
+				}
+			}
+		}
+		boolean result = true;
+		for(int i = 0; i < results.length; i++){
+			result = result && results[i];
+		}
+		return result;
+	}
 
 	class CaptureThread implements Runnable {
 

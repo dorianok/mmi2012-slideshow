@@ -4,9 +4,9 @@ import java.awt.Color;
 import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.FileFilter;
+import java.util.List;
 
 import processing.core.PApplet;
-import processing.core.PFont;
 import processing.core.PImage;
 
 public class MMISlideshow extends PApplet {
@@ -26,7 +26,7 @@ public class MMISlideshow extends PApplet {
 	private float translationX, translationY;
 	private long timeLastAction;
 	
-	private boolean inputActivated = false;
+	private boolean inputActivated = true;
 	
 	private enum InteractionMode
 	{
@@ -41,6 +41,8 @@ public class MMISlideshow extends PApplet {
 	private PImage img;
 	private int currentImgIdx = 0;
 	
+	private SpeechRecognizer speechRecognizer;
+	
 	public void setup()
 	{
 
@@ -51,7 +53,11 @@ public class MMISlideshow extends PApplet {
 		loadImageFiles();
 		
 		//load first img by default
-		img = loadImage(imageFiles[currentImgIdx].getAbsolutePath());		
+		img = loadImage(imageFiles[currentImgIdx].getAbsolutePath());
+		
+		timeLastAction = System.currentTimeMillis();
+		
+		speechRecognizer = new SpeechRecognizer();
 	}
 
 	public void draw()
@@ -131,100 +137,175 @@ public class MMISlideshow extends PApplet {
 		if(!inputActivated)
 			return;
 		
-		if(keyCode==KeyEvent.VK_P) {
-			if(timeBetweenLastAction > minTimeBetweenActions) {
-				currentImgIdx = Math.max(0, currentImgIdx-1);
-				img = loadImage(imageFiles[currentImgIdx].getAbsolutePath());
-				scalingFactor = 1.0f;
-				translationX = translationY = rotationAngle = 0;
-			}
-			timeLastAction = System.currentTimeMillis();
+		switch(keyCode){
+		case KeyEvent.VK_P:
+			previous(timeBetweenLastAction);
+			break;
+		case KeyEvent.VK_N:
+			next(timeBetweenLastAction);
+			break;
+		case KeyEvent.VK_R:
+			rotate(timeBetweenLastAction, PI/2);
+			break;
+		case KeyEvent.VK_L:
+			rotate(timeBetweenLastAction, -PI/2);
+			break;
+		case KeyEvent.VK_J:
+			scalingIncrease();
+			break;
+		case KeyEvent.VK_K:
+			scalingDecrease();
+			break;
+		case KeyEvent.VK_A:
+			moveLeft();
+			break;
+		case KeyEvent.VK_D:
+			moveRight();
+			break;
+		case KeyEvent.VK_W:
+			moveUp();
+			break;
+		case KeyEvent.VK_S:
+			moveDown();
+			break;
+		case KeyEvent.VK_CONTROL:
+			speechRecognizer.startCaptureAudio();
+			break;
 		}
-		else if(keyCode==KeyEvent.VK_N) {
-			if(timeBetweenLastAction > minTimeBetweenActions) {
-				currentImgIdx = Math.min(imageFiles.length-1, currentImgIdx+1);
-				img = loadImage(imageFiles[currentImgIdx].getAbsolutePath());
-				scalingFactor = 1.0f;
-				translationX = translationY = rotationAngle = 0;
-			}
-			timeLastAction = System.currentTimeMillis();
-		}
-		else if(keyCode==KeyEvent.VK_R) {
-			if(timeBetweenLastAction > minTimeBetweenActions) {
-				rotationAngle += PI/2;
-				scalingFactor = 1.0f;
-				translationX = translationY = 0;
-			}
-			timeLastAction = System.currentTimeMillis();
-		}
-		else if(keyCode==KeyEvent.VK_L) {
-			if(timeBetweenLastAction > minTimeBetweenActions) {
-				rotationAngle -= PI/2;
-				scalingFactor = 1.0f;
-				translationX = translationY = 0;
-			}
-			timeLastAction = System.currentTimeMillis();
-		}
-		else if(keyCode==KeyEvent.VK_J) {
-			scalingFactor *= (1+scalingIncrement);
-			scalingFactor = Math.min(scalingFactor, maxScalingFactor);
-			//System.out.println(translationX + " " + getCurrentImageWidth() + " " + scalingFactor);
-		}
-		else if(keyCode==KeyEvent.VK_K) {
-			scalingFactor /= (1+scalingIncrement);
-			scalingFactor = Math.max(scalingFactor, 1.0f);
-			
-			float imgW = getCurrentImageWidth();
-			float imgH = getCurrentImageHeight();
-			if(imgW > canvasWidth) {
-				translationX = Math.min(translationX, ((imgW - canvasWidth)/2));
-				translationX = Math.max(translationX, -((imgW - canvasWidth)/2));
-			}
-			else {
-				translationX = 0;
-			}
-			translationY = Math.min(translationY, ((imgH - canvasHeight)/2));
-			translationY = Math.max(translationY, -((imgH - canvasHeight)/2));
-			
-			//System.out.println(translationX + " " + getCurrentImageWidth() + " " + scalingFactor);
-		}
-		else if(keyCode==KeyEvent.VK_A) {
-			float imgW = getCurrentImageWidth();
-			if(imgW > canvasWidth) {
-				translationX += canvasWidth*translationIncrement;
-				translationX = Math.min(translationX, ((imgW - canvasWidth)/2));
-			}
-			//System.out.println(translationX + " " + getCurrentImageWidth() + " " + scalingFactor);
-		}
-		else if(keyCode==KeyEvent.VK_D) {
-			float imgW = getCurrentImageWidth();
-			if(imgW > canvasWidth) {
-				translationX -= canvasWidth*translationIncrement;
-				translationX = Math.max(translationX, -((imgW - canvasWidth)/2));
-			}
-		}
-		else if(keyCode==KeyEvent.VK_W) {
-			translationY += canvasHeight*translationIncrement;
-			translationY = Math.min(translationY, ((getCurrentImageHeight() - canvasHeight)/2));
-			//System.out.println(translationX + " " + canvasWidth*scalingFactor + " " + scalingFactor);
-		}
-		else if(keyCode==KeyEvent.VK_S) {
-			translationY -= canvasHeight*translationIncrement;
-			translationY = Math.max(translationY, -((getCurrentImageHeight() - canvasHeight)/2));
-		}
-		
-		
-
 	}
-	
+
 	@Override
 	public void keyReleased() {
 		if(keyCode==KeyEvent.VK_0) {
 			System.out.println("gesture mode DEACTIVATED");
 			inputActivated = false;
+		} else if(keyCode==KeyEvent.VK_CONTROL){
+			System.out.println("speech mode DEACTIVATED, capture ends");
+			speechRecognizer.stopCaptureAudio();
+			handleSpeechRequest(speechRecognizer.recognizeSpeech());
+			
 		}
 	}
 
+	private void handleSpeechRequest(List<String> capturedPhrases) {
+		int timeBetweenLastAction = (int)(System.currentTimeMillis()-timeLastAction);
+		if(speechRecognizer.checkContainsPhrase(capturedPhrases, "next")){
+			next(timeBetweenLastAction);
+			return;
+		} else if(speechRecognizer.checkContainsPhrase(capturedPhrases, "previous")){
+			previous(timeBetweenLastAction);
+			return;
+		} else if(speechRecognizer.checkContainsPhrase(capturedPhrases, "zoom in")){
+			scalingIncrease();
+			return;
+		} else if(speechRecognizer.checkContainsPhrase(capturedPhrases, "zoom out")){
+			scalingDecrease();
+			return;
+		} else if(speechRecognizer.checkContainsPhrase(capturedPhrases, "rotate left")){
+			rotate(timeBetweenLastAction, -PI/2);
+			return;
+		} else if(speechRecognizer.checkContainsPhrase(capturedPhrases, "rotate right")){
+			rotate(timeBetweenLastAction, PI/2);
+			return;
+		} else if(speechRecognizer.checkContainsPhrase(capturedPhrases, "move left")){
+			moveLeft();
+			return;
+		} else if(speechRecognizer.checkContainsPhrase(capturedPhrases, "move right")){
+			moveRight();
+			return;
+		} else if(speechRecognizer.checkContainsPhrase(capturedPhrases, "move up")){
+			moveUp();
+			return;
+		} else if(speechRecognizer.checkContainsPhrase(capturedPhrases, "move down")){
+			moveDown();
+			return;
+		}
+	}
+
+	private void moveDown() {
+		translationY -= canvasHeight*translationIncrement;
+		translationY = Math.max(translationY, -((getCurrentImageHeight() - canvasHeight)/2));
+	}
+
+	private void moveUp() {
+		translationY += canvasHeight*translationIncrement;
+		translationY = Math.min(translationY, ((getCurrentImageHeight() - canvasHeight)/2));
+		//System.out.println(translationX + " " + canvasWidth*scalingFactor + " " + scalingFactor);
+	
+	}
+
+	private void moveRight() {
+		float imgW = getCurrentImageWidth();
+		if(imgW > canvasWidth) {
+			translationX -= canvasWidth*translationIncrement;
+			translationX = Math.max(translationX, -((imgW - canvasWidth)/2));
+		}
+	}
+
+	private void moveLeft() {
+		float imgW = getCurrentImageWidth();
+		if(imgW > canvasWidth) {
+			translationX += canvasWidth*translationIncrement;
+			translationX = Math.min(translationX, ((imgW - canvasWidth)/2));
+		}
+		//System.out.println(translationX + " " + getCurrentImageWidth() + " " + scalingFactor);
+	
+	}
+
+	private void scalingDecrease() {
+		scalingFactor /= (1+scalingIncrement);
+		scalingFactor = Math.max(scalingFactor, 1.0f);
+		
+		float imgW = getCurrentImageWidth();
+		float imgH = getCurrentImageHeight();
+		if(imgW > canvasWidth) {
+			translationX = Math.min(translationX, ((imgW - canvasWidth)/2));
+			translationX = Math.max(translationX, -((imgW - canvasWidth)/2));
+		}
+		else {
+			translationX = 0;
+		}
+		translationY = Math.min(translationY, ((imgH - canvasHeight)/2));
+		translationY = Math.max(translationY, -((imgH - canvasHeight)/2));
+		
+		//System.out.println(translationX + " " + getCurrentImageWidth() + " " + scalingFactor);
+	
+	}
+
+	private void scalingIncrease() {
+		scalingFactor *= (1+scalingIncrement);
+		scalingFactor = Math.min(scalingFactor, maxScalingFactor);
+		//System.out.println(translationX + " " + getCurrentImageWidth() + " " + scalingFactor);
+	}
+
+	private void rotate(int timeBetweenLastAction, float f) {
+		if(timeBetweenLastAction > minTimeBetweenActions) {
+			rotationAngle += f;
+			scalingFactor = 1.0f;
+			translationX = translationY = 0;
+		}
+		timeLastAction = System.currentTimeMillis();
+	}
+	
+	private void next(int timeBetweenLastAction) {
+		if(timeBetweenLastAction > minTimeBetweenActions) {
+			currentImgIdx = Math.min(imageFiles.length-1, currentImgIdx+1);
+			img = loadImage(imageFiles[currentImgIdx].getAbsolutePath());
+			scalingFactor = 1.0f;
+			translationX = translationY = rotationAngle = 0;
+		}
+		timeLastAction = System.currentTimeMillis();
+	}
+	
+	private void previous(int timeBetweenLastAction){
+		if(timeBetweenLastAction > minTimeBetweenActions) {
+			currentImgIdx = Math.max(0, currentImgIdx-1);
+			img = loadImage(imageFiles[currentImgIdx].getAbsolutePath());
+			scalingFactor = 1.0f;
+			translationX = translationY = rotationAngle = 0;
+		}
+		timeLastAction = System.currentTimeMillis();
+	}
 
 	private float getCurrentImageWidth() {
 		if(isImageInPortraitOrientation())
