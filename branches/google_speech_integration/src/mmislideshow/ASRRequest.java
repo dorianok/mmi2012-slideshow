@@ -242,7 +242,10 @@ public class ASRRequest {
 			Map hypoAsMap = (Map) hypotheseObject;
 			
 			Hypothesis hypothese = new Hypothesis();
-			hypothese.setConfidence( (Double) hypoAsMap.get("confidence") );
+			Double conf = (Double) hypoAsMap.get("confidence");
+			if(conf != null){
+				hypothese.setConfidence(conf);
+			}
 			hypothese.setUtterance( (String) hypoAsMap.get("utterance") );
 			
 			result.getHypotheses().add(hypothese);
